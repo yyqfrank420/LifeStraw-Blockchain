@@ -1,0 +1,23 @@
+{
+  "name": "lifestraw-chaincode",
+  "version": "1.0.0",
+  "description": "LifeStraw Filter Lifecycle Chaincode",
+  "main": "index.js",
+  "scripts": {
+    "start": "fabric-chaincode-node start",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "hyperledger",
+    "fabric",
+    "chaincode",
+    "lifestraw"
+  ],
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "fabric-contract-api": "^2.5.8",
+    "fabric-shim": "^2.5.8"
+  }
+}
+
