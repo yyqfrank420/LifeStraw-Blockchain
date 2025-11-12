@@ -1,19 +1,21 @@
-# LDVB - LifeStraw Digital Verification Blockchain
+# LifeStraw Digital Verification Blockchain
 
-A permissioned blockchain system that records and verifies the complete lifecycle of LifeStraw water filters, from manufacture to installation and replacement.
+A permissioned blockchain system that records and verifies the complete lifecycle of LifeStraw water filters, from manufacture to delivery verification and replacement.
+
+**🔗 GitHub Repository**: https://github.com/yyqfrank420/LifeStraw-Blockchain
 
 ## Overview
 
-LDVB is a Hyperledger Fabric-based traceability system that ensures each LifeStraw filter has a digital identity on a private blockchain. The system captures and verifies every event: manufactured → shipped → received → installed → replaced or lost.
+LDVB is a Hyperledger Fabric-based traceability system that ensures each LifeStraw filter has a digital identity on a private blockchain. The system captures and verifies every event: **manufactured → shipped → received → verified → replaced or lost**.
 
 ### Key Features
 
-- **Real-time Blockchain Recording**: All filter lifecycle events are recorded on Hyperledger Fabric
+- **Real-time Blockchain Recording**: All filter lifecycle events are recorded immutably on Hyperledger Fabric
 - **Mobile-First UI**: Responsive React frontend with professional LifeStraw branding
 - **SQLite Cache**: Fast queries for recent events and statistics
 - **CouchDB Visualization**: View complete ledger state via web UI
 - **Role-Based Access**: Four distinct portals (HQ Operations, Local NGO Manager, Field Agent, Donor)
-- **ngrok Support**: Easy remote access for demos and testing
+- **ngrok Support**: Easy remote access for demos and presentations
 
 ## Architecture
 
@@ -27,22 +29,38 @@ Hyperledger Fabric Test Network (Docker)
 CouchDB World State (http://localhost:5984/_utils)
 ```
 
+**Important**: The blockchain ledger (blocks) is the **immutable source of truth**. CouchDB is a query layer derived from the blockchain.
+
 ## Prerequisites
 
 - **Node.js** 18+ and npm
 - **Docker Desktop** (running)
 - **Git**
-- **ngrok** (optional, for remote access)
+- **ngrok** (optional, for remote access/demos)
 
-## Quick Start
+## Quick Start (Demo Day)
 
-### 1. Clone and Setup
+For a complete demo setup, use the automated script:
 
 ```bash
-cd ~/Desktop/blockchain
+cd /Users/yangyuqing/Desktop/blockchain
+bash DEMO_DAY_COMMANDS.sh
 ```
 
-### 2. Setup Fabric Network
+This script will:
+1. ✅ Start Docker Desktop (waits for you to confirm)
+2. ✅ Start Fabric network with CouchDB
+3. ✅ Deploy LifeStraw chaincode
+4. ✅ Start backend server (port 3000)
+5. ✅ Start frontend dev server (port 5173)
+6. ✅ Start ngrok tunnels for both
+7. ✅ Display demo URLs
+
+**For detailed demo instructions**, see `DEMO_GUIDE.md` and `Demo Ops Guide.md`.
+
+## Manual Setup
+
+### 1. Setup Fabric Network
 
 ```bash
 # Run the automated setup script
@@ -51,66 +69,20 @@ cd ~/Desktop/blockchain
 
 This script will:
 - Clone fabric-samples (if needed)
-- Download Fabric binaries (2.5.6, 1.5.8)
+- Download Fabric binaries
 - Start the test network with channel `ch1` and CA
 - Deploy the LifeStraw chaincode
 - Copy connection profile to `server/fabric/connection-org1.json`
 
-**Manual Alternative:**
-```bash
-mkdir ~/ldvb && cd ~/ldvb
-git clone https://github.com/hyperledger/fabric-samples
-cd fabric-samples
-curl -sSL https://bit.ly/2ysbiFn | bash -s -- 2.5.6 1.5.8
-cd test-network
-./network.sh up createChannel -c ch1 -ca
+### 2. Setup Wallet (Enroll appUser)
 
-# Copy chaincode
-mkdir -p ../chaincode/lifestraw
-cp -r /path/to/blockchain/chaincode/lifestraw/* ../chaincode/lifestraw/
-cd ../chaincode/lifestraw
-npm install
-
-# Deploy chaincode
-cd ../../test-network
-./network.sh deployCC -c ch1 -ccn lifestraw -ccp ../chaincode/lifestraw -ccl javascript
-
-# Copy connection profile
-cp organizations/peerOrganizations/org1.example.com/connection-org1.json \
-   /path/to/blockchain/server/fabric/
-```
-
-### 3. Setup Wallet (Enroll appUser)
-
-**Option A: Using Node.js script (Recommended)**
 ```bash
 cd server
 npm install
-node ../scripts/enroll-user.js
+node ../scripts/quick-enroll.js
 ```
 
-**Option B: Using shell script**
-```bash
-./scripts/setup-wallet.sh
-```
-
-### 4. Configure Environment
-
-Copy example env files and update if needed:
-
-```bash
-# Server
-cd server
-cp .env.example .env
-# Edit .env if needed (defaults should work)
-
-# Client
-cd ../client
-cp .env.example .env
-# Edit .env if using ngrok
-```
-
-### 5. Install Dependencies
+### 3. Install Dependencies
 
 ```bash
 # Backend
@@ -122,12 +94,12 @@ cd ../client
 npm install
 ```
 
-### 6. Start Services
+### 4. Start Services
 
 **Terminal 1 - Backend:**
 ```bash
 cd server
-npm start
+node server.js
 ```
 
 **Terminal 2 - Frontend:**
@@ -154,7 +126,7 @@ The frontend will be available at `http://localhost:5173`
 1. **HQ Operations** (`/hq-ops`)
    - Register new batches
    - Ship batches to destinations
-   - Track and search units by ID, batch, site, or warehouse
+   - Track and search units by ID or batch ID
    - View complete unit history
    - Export JSON proofs
 
@@ -164,24 +136,24 @@ The frontend will be available at `http://localhost:5173`
    - Manage warehouse operations
 
 3. **Field Agent** (`/field-agent`)
-   - Verify filters at sites (RECEIVED → INSTALLED)
+   - Verify filters at sites (RECEIVED → VERIFIED)
    - Replace old units
    - Flag lost/damaged units
 
 4. **Donor** (`/donor`)
    - View verified delivery metrics
    - See replacement compliance rates
-   - Monitor impact statistics
+   - Monitor impact statistics (lives saved)
 
 ### API Endpoints
 
-All write operations require `X-API-Key` header (default: `dev-api-key-change-in-production`)
+All write operations require `X-API-Key` header (default: logged to console in dev mode)
 
 **Write Operations:**
 - `POST /api/register` - Register new batch
-- `POST /api/ship` - Ship batch
+- `POST /api/ship` - Ship batch (requires batchId only, infers units)
 - `POST /api/receive` - Receive at warehouse
-- `POST /api/install` - Receive & verify at site
+- `POST /api/install` - Verify delivery at site (uses `verifierId`)
 - `POST /api/replace` - Replace unit
 - `POST /api/flag` - Flag lost/damaged
 
@@ -189,69 +161,69 @@ All write operations require `X-API-Key` header (default: `dev-api-key-change-in
 - `GET /api/read/:unitId` - Query unit history
 - `GET /api/recent?limit=25` - Recent events from cache
 - `GET /api/stats` - Aggregate statistics
-- `GET /api/search?q=query` - Search units
+- `GET /api/search?q=query` - Search units by ID or batch ID
+- `GET /api/blockchain/blocks` - Recent blockchain transactions
+- `GET /api/blockchain/documents` - CouchDB state documents
 
 ### Example API Calls
 
 ```bash
-# Register a batch
+# Register a batch (new naming: batch-yyyy-xxx)
 curl -X POST http://localhost:3000/api/register \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: dev-api-key-change-in-production" \
+  -H "X-API-Key: YOUR_API_KEY" \
   -d '{
-    "batchId": "BATCH-2024-001",
-    "unitIds": ["unit001", "unit002", "unit003"]
+    "batchId": "batch-2024-001",
+    "unitIds": ["b-2024-u-001", "b-2024-u-002", "b-2024-u-003"]
   }'
 
-# Receive & verify a unit at site
+# Ship batch (only needs batchId)
+curl -X POST http://localhost:3000/api/ship \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -d '{
+    "batchId": "batch-2024-001",
+    "destination": "Nairobi Warehouse"
+  }'
+
+# Verify delivery at site (uses verifierId, not installerId)
 curl -X POST http://localhost:3000/api/install \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: dev-api-key-change-in-production" \
+  -H "X-API-Key: YOUR_API_KEY" \
   -d '{
-    "unitId": "unit001",
+    "unitId": "b-2024-u-001",
     "siteId": "SITE-001",
-    "installerId": "agent-john"
+    "verifierId": "agent-john"
   }'
 
 # Query unit history
-curl http://localhost:3000/api/read/unit001
+curl http://localhost:3000/api/read/b-2024-u-001
 ```
 
 ## Remote Access with ngrok
 
-To share your demo with remote teammates:
+To share your demo with remote teammates or present on a projector:
 
 1. **Install ngrok**: https://ngrok.com/download
 
-2. **Start ngrok tunnel:**
+2. **Start ngrok tunnels** (or use `DEMO_DAY_COMMANDS.sh` which does this automatically):
 ```bash
+# Terminal 1: Backend tunnel
 ngrok http 3000
+
+# Terminal 2: Frontend tunnel  
+ngrok http 5173
 ```
 
-3. **Update client .env:**
+3. **Update client .env** (or let `DEMO_DAY_COMMANDS.sh` do it):
 ```bash
 # client/.env
-VITE_API_BASE=https://your-ngrok-url.ngrok.io
+VITE_API_BASE=https://your-backend-ngrok-url.ngrok-free.app
 ```
 
-4. **Restart frontend** to pick up new API URL
+4. **Access frontend** via ngrok URL on any device
 
-5. **Update server CORS** (if needed):
-```bash
-# server/.env
-CORS_ORIGIN=http://localhost:5173,https://your-ngrok-url.ngrok.io
-```
-
-## CouchDB Visualization
-
-Access the CouchDB web UI to view the complete ledger state:
-
-1. Open http://localhost:5984/_utils
-2. Select database: `ch1_lifestraw`
-3. Browse documents to see filter states
-4. Use the query interface for advanced searches
-
-Each document represents a filter unit with its complete history.
+**Note**: ngrok URLs change on restart. The demo script handles this automatically.
 
 ## Chaincode Operations
 
@@ -260,7 +232,7 @@ The LifeStraw chaincode implements 7 operations:
 1. **RegisterBatch** - Create new filter units in a batch
 2. **ShipBatch** - Mark batch as shipped to destination
 3. **ReceiveAtWarehouse** - Record warehouse receipt
-4. **InstallAtSite** - Record receipt and verification at a site
+4. **VerifyAtSite** - Record delivery verification at a site (uses `verifierId`)
 5. **ReplaceUnit** - Handle replacement of old unit with new
 6. **FlagLostDamaged** - Mark unit as lost or damaged
 7. **ReadUnit** - Query unit history and current state
@@ -268,27 +240,52 @@ The LifeStraw chaincode implements 7 operations:
 ### State Transitions
 
 ```
-REGISTERED → SHIPPED → RECEIVED → INSTALLED → REPLACED/LOST_OR_DAMAGED
+REGISTERED → SHIPPED → RECEIVED → VERIFIED → REPLACED/LOST_OR_DAMAGED
 ```
 
-## Design System
+**Important Terminology**:
+- ✅ **VERIFIED** (not "INSTALLED") - means delivery was verified at site
+- ✅ **verifierId** (not "installerId") - the person who verified delivery
+- ✅ We don't "install" filters, we **verify** they were delivered
 
-### Color Palette
-- **Primary**: #007CC3 (LifeStraw Blue)
-- **Hover**: #0066A3
-- **Background**: White (#FFFFFF) with gray-50 (#F9FAFB) accents
-- **Text**: Gray scale (gray-600 to gray-900)
+### ID Format
 
-### Typography
-- **Headings**: Bold, large sizes (text-3xl to text-6xl)
-- **Body**: Regular weight, 16px base
-- **Labels**: Semibold, 14px
+- **Batch IDs**: `batch-yyyy-xxx` (e.g., `batch-2024-001`)
+- **Unit IDs**: `b-yyyy-u-xxx` (e.g., `b-2024-u-001`)
 
-### Components
-- **Cards**: White background, subtle borders, rounded-xl
-- **Buttons**: LifeStraw blue primary, proper hover states
-- **Icons**: Lucide React (professional SVG icons)
-- **Spacing**: Consistent Tailwind scale (4px increments)
+## Project Structure
+
+```
+blockchain/
+├── chaincode/
+│   └── lifestraw/
+│       ├── index.js          # Chaincode implementation
+│       └── package.json
+├── server/
+│   ├── server.js             # Express app
+│   ├── fabric/
+│   │   ├── gateway.js        # Fabric Gateway wrapper
+│   │   ├── connection-org1.json.example
+│   │   └── wallet/           # Fabric identities (gitignored)
+│   ├── db/
+│   │   └── database.js       # SQLite operations
+│   └── package.json
+├── client/
+│   ├── src/
+│   │   ├── pages/            # React pages (Home, HQOps, etc.)
+│   │   ├── components/       # Reusable components
+│   │   ├── utils/            # Utilities (scan, etc.)
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   └── package.json
+├── scripts/
+│   ├── setup-fabric.sh       # Fabric network setup
+│   └── quick-enroll.js       # Wallet enrollment
+├── DEMO_DAY_COMMANDS.sh      # One-command demo startup
+├── DEMO_GUIDE.md             # Detailed demo instructions
+├── Demo Ops Guide.md         # Demo operations guide
+└── README.md
+```
 
 ## Troubleshooting
 
@@ -303,7 +300,7 @@ docker ps
 cd fabric-samples/test-network
 ./network.sh down
 docker volume prune -f
-./network.sh up createChannel -c ch1 -ca
+./network.sh up createChannel -c ch1 -ca -s couchdb
 ```
 
 **Problem**: Chaincode deployment fails
@@ -326,10 +323,7 @@ cd ../../test-network
 ```bash
 # Use Node.js enrollment script
 cd server
-node ../scripts/enroll-user.js
-
-# Or manually enroll via Fabric CA CLI
-# (see setup-wallet.sh for commands)
+node ../scripts/quick-enroll.js
 ```
 
 **Problem**: Connection profile not found
@@ -348,8 +342,8 @@ cp fabric-samples/test-network/organizations/peerOrganizations/org1.example.com/
 
 **Problem**: Port 3000 already in use
 ```bash
-# Change port in server/.env
-PORT=3001
+# Change port in server/.env or kill existing process
+lsof -ti:3000 | xargs kill
 ```
 
 ### Frontend Issues
@@ -358,136 +352,19 @@ PORT=3001
 - Check backend is running on correct port
 - Verify `VITE_API_BASE` in `client/.env` matches backend URL
 - Check browser console for CORS errors
-- Ensure API key matches: `VITE_API_KEY` in client matches `API_KEY` in server
+- Ensure API key matches (check backend console for dev API key)
 
-**Problem**: Tailwind styles not applying
-```bash
-cd client
-npm install
-# Restart dev server
-```
-
-## Project Structure
-
-```
-blockchain/
-├── chaincode/
-│   └── lifestraw/
-│       ├── index.js          # Chaincode implementation
-│       └── package.json
-├── server/
-│   ├── server.js             # Express app
-│   ├── fabric/
-│   │   ├── gateway.js        # Fabric Gateway wrapper
-│   │   ├── connection-org1.json
-│   │   └── wallet/           # Fabric identities
-│   ├── db/
-│   │   └── database.js       # SQLite operations
-│   └── package.json
-├── client/
-│   ├── src/
-│   │   ├── pages/            # React pages
-│   │   ├── components/       # Reusable components
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   └── package.json
-├── scripts/
-│   ├── setup-fabric.sh       # Fabric network setup
-│   ├── setup-wallet.sh       # Wallet enrollment (shell)
-│   └── enroll-user.js        # Wallet enrollment (Node.js)
-└── README.md
-```
-
-## Code Quality & Audit
-
-### Quality Score: 7/10
-
-| Category | Score | Status |
-|----------|-------|--------|
-| **Functionality** | 9/10 | ✅ All features working |
-| **Code Quality** | 8/10 | ✅ Clean, maintainable |
-| **Performance** | 7/10 | ⚠️ Polling could be optimized |
-| **Security** | 7/10 | ⚠️ Basic security, needs hardening |
-| **Design/UX** | 8/10 | ✅ Professional LifeStraw branding |
-| **Accessibility** | 6/10 | ⚠️ Basic structure, needs ARIA |
-| **Mobile** | 8/10 | ✅ Responsive design |
-| **Documentation** | 9/10 | ✅ Comprehensive |
-
-### Known Issues Fixed
-
-1. ✅ Transaction ID retrieval bug (critical)
-2. ✅ Comma-separated unitIds transformation
-3. ✅ Cache field preservation
-4. ✅ ReplaceUnit validation
-5. ✅ Stats return type (number vs string)
-6. ✅ Unnecessary async/await removed
-7. ✅ Emojis replaced with professional icons
-8. ✅ Color palette simplified to LifeStraw brand
-9. ✅ Typography hierarchy improved
-10. ✅ Consistent spacing system
-11. ✅ Card designs polished
-12. ✅ Table styling enhanced
-13. ✅ Form UX improved
-
-### Remaining Enhancements (Future)
-
-- Skeleton loading screens
-- Mobile-optimized table views
-- Breadcrumb navigation
-- Enhanced error messages (user-friendly)
-- Empty state illustrations
-- Full accessibility audit (ARIA labels, keyboard nav)
-- WebSockets instead of polling
-- Favicon and meta tags
-
-## Acceptance Tests
-
-Run these tests to verify the system:
-
-1. **Register Batch**
-   ```bash
-   curl -X POST http://localhost:3000/api/register \
-     -H "Content-Type: application/json" \
-     -H "X-API-Key: dev-api-key-change-in-production" \
-     -d '{"batchId":"TEST-001","unitIds":["test001"]}'
-   ```
-   - Expected: Returns 200 with txId
-   - Verify: CouchDB shows unit with state "REGISTERED"
-
-2. **Install Unit**
-   ```bash
-   curl -X POST http://localhost:3000/api/install \
-     -H "Content-Type: application/json" \
-     -H "X-API-Key: dev-api-key-change-in-production" \
-     -d '{"unitId":"test001","siteId":"SITE-001","installerId":"INST-001"}'
-   ```
-   - Expected: Returns 200 with txId
-   - Verify: CouchDB shows state "INSTALLED" within 2 seconds
-
-3. **Query Unit**
-   ```bash
-   curl http://localhost:3000/api/read/test001
-   ```
-   - Expected: Returns JSON with history array including recent events
-
-4. **Get Stats**
-   ```bash
-   curl http://localhost:3000/api/stats
-   ```
-   - Expected: Returns counts matching CouchDB total docs
-
-5. **Frontend Flow**
-   - Open http://localhost:5173
-   - Select "Field Agent"
-   - Submit an installation
-   - Verify transaction appears in Recent Transactions within 2 seconds
+**Problem**: ngrok "Blocked request" error
+- Vite config includes `allowedHosts` for ngrok
+- Ensure you're using the ngrok URL, not localhost
+- Check `vite.config.js` has proxy configuration
 
 ## Security Notes
 
-- **API Key**: Change default API key in production
-- **CORS**: Update allowed origins in `server/.env`
+- **API Key**: Default API key is logged to console in dev mode. Change in production.
+- **CORS**: Update allowed origins in `server/server.js` for production
 - **Wallet**: Keep `server/fabric/wallet/` secure (already in .gitignore)
-- **Connection Profile**: Contains TLS certs (already in .gitignore)
+- **Connection Profile**: Contains TLS certs (example file only in repo)
 
 ## Development
 
@@ -503,7 +380,7 @@ Run these tests to verify the system:
 **events table:**
 - txId (PRIMARY KEY)
 - unitId
-- eventType
+- eventType (REGISTERED, SHIPPED, RECEIVED, VERIFIED, REPLACED, FLAGGED)
 - ts (timestamp)
 - org
 - status
@@ -515,9 +392,19 @@ Run these tests to verify the system:
 - batchId
 - siteId
 - warehouseId
-- installerId
+- verifierId (not installerId)
 - lastTs
 - lastEventType
+
+## Recent Updates
+
+- ✅ **Terminology Update**: Changed "INSTALLED" → "VERIFIED", "installerId" → "verifierId" across entire stack
+- ✅ **ID Format**: New naming convention (`batch-yyyy-xxx`, `b-yyyy-u-xxx`)
+- ✅ **Ship Batch**: Now only requires `batchId` (infers units from cache)
+- ✅ **Bug Fixes**: All critical bugs fixed, full stack consistency verified
+- ✅ **Mobile-First Design**: Complete UI redesign with LifeStraw branding
+- ✅ **Blockchain Viewer**: In-app viewer with full-page mode
+- ✅ **Demo Script**: One-command startup for demo day
 
 ## License
 
@@ -530,4 +417,4 @@ For issues:
 2. Verify all prerequisites are installed
 3. Check Docker containers are running: `docker ps`
 4. Review server logs for detailed error messages
-
+5. See `DEMO_GUIDE.md` for detailed demo instructions
