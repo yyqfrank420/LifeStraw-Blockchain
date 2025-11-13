@@ -131,17 +131,6 @@ app.post('/api/register', apiKeyMiddleware, async (req, res) => {
             return res.status(400).json({ error: 'Batch ID and non-empty unitIds array are required' });
         }
 
-        // Validate ID formats
-        if (!validateBatchId(batchId)) {
-            return res.status(400).json({ error: 'Batch ID must follow format: batch-yyyy-xxx (e.g., batch-2024-001)' });
-        }
-
-        for (const unitId of unitIds) {
-            if (!validateUnitId(unitId)) {
-                return res.status(400).json({ error: `Unit ID "${unitId}" must follow format: b-yyyy-u-xxx (e.g., b-2024-u-001)` });
-            }
-        }
-
         const gateway = await getGateway();
         const result = await gateway.submitTransaction('RegisterBatch', batchId, JSON.stringify(unitIds));
         
@@ -175,10 +164,6 @@ app.post('/api/ship', apiKeyMiddleware, async (req, res) => {
         
         if (!batchId || !destination) {
             return res.status(400).json({ error: 'Batch ID and destination are required' });
-        }
-
-        if (!validateBatchId(batchId)) {
-            return res.status(400).json({ error: 'Batch ID must follow format: batch-yyyy-xxx (e.g., batch-2024-001)' });
         }
 
         // Get all units in this batch from cache
@@ -220,30 +205,77 @@ app.post('/api/ship', apiKeyMiddleware, async (req, res) => {
     }
 });
 
-// POST /api/receive - Receive at warehouse
+// POST /api/receive - Receive at warehouse (accepts both batchId and unitId)
 app.post('/api/receive', apiKeyMiddleware, async (req, res) => {
     try {
-        const { unitId, warehouseId } = req.body;
+        const { batchId, unitId, warehouseId } = req.body;
         
-        if (!unitId || !warehouseId) {
-            return res.status(400).json({ error: 'Unit ID and warehouse ID are required' });
+        if (!warehouseId) {
+            return res.status(400).json({ error: 'Warehouse ID is required' });
         }
 
-        if (!validateUnitId(unitId)) {
-            return res.status(400).json({ error: 'Unit ID must follow format: b-yyyy-u-xxx (e.g., b-2024-u-001)' });
+        if (!batchId && !unitId) {
+            return res.status(400).json({ error: 'Either batch ID or unit ID is required' });
         }
 
         const gateway = await getGateway();
-        const result = await gateway.submitTransaction('ReceiveAtWarehouse', unitId, warehouseId);
+        let unitIds = [];
         
-        updateCache('RECEIVED', unitId, result.txId, result, 'Org1MSP');
+        // If batchId is provided, get all units in that batch
+        if (batchId) {
+            const unitsInBatch = db.getUnitsByBatch(batchId);
+            if (!unitsInBatch || unitsInBatch.length === 0) {
+                return res.status(404).json({ error: `No units found for batch ${batchId}. Please register the batch first.` });
+            }
+            unitIds = unitsInBatch.map(unit => unit.unitId);
+        } else {
+            // If only unitId is provided, use just that unit
+            unitIds = [unitId];
+        }
+
+        // Process each unit
+        const results = [];
+        const errors = [];
         
+        for (const currentUnitId of unitIds) {
+            try {
+                const result = await gateway.submitTransaction('ReceiveAtWarehouse', currentUnitId, warehouseId);
+                updateCache('RECEIVED', currentUnitId, result.txId, result, 'Org1MSP');
+                results.push({
+                    unitId: result.unitId,
+                    txId: result.txId,
+                    warehouseId: result.warehouseId,
+                    timestamp: result.timestamp
+                });
+            } catch (unitError) {
+                errors.push({
+                    unitId: currentUnitId,
+                    error: unitError.message || 'Failed to receive unit'
+                });
+            }
+        }
+
+        // If all failed, return error
+        if (results.length === 0) {
+            const firstError = errors[0];
+            const message = firstError.error;
+            if (message.includes('not found')) {
+                return res.status(404).json({ error: 'Unit not found. Please register the unit first.' });
+            } else if (message.includes('cannot be received from state')) {
+                return res.status(400).json({ error: 'Unit must be shipped before it can be received at warehouse.' });
+            } else {
+                return res.status(500).json({ error: message });
+            }
+        }
+
+        // Return success with results
         res.json({
             success: true,
-            txId: result.txId,
-            unitId: result.unitId,
-            warehouseId: result.warehouseId,
-            timestamp: result.timestamp
+            batchId: batchId || null,
+            unitCount: results.length,
+            results: results,
+            errors: errors.length > 0 ? errors : undefined,
+            timestamp: results[0]?.timestamp
         });
     } catch (error) {
         console.error('Receive error:', error);
@@ -265,10 +297,6 @@ app.post('/api/install', apiKeyMiddleware, async (req, res) => {
         
         if (!unitId || !siteId || !verifierId) {
             return res.status(400).json({ error: 'Unit ID, site ID, and verifier ID are required' });
-        }
-
-        if (!validateUnitId(unitId)) {
-            return res.status(400).json({ error: 'Unit ID must follow format: b-yyyy-u-xxx (e.g., b-2024-u-001)' });
         }
 
         const gateway = await getGateway();
@@ -304,10 +332,6 @@ app.post('/api/replace', apiKeyMiddleware, async (req, res) => {
         
         if (!oldUnitId || !newUnitId || !siteId) {
             return res.status(400).json({ error: 'Old unit ID, new unit ID, and site ID are required' });
-        }
-
-        if (!validateUnitId(oldUnitId) || !validateUnitId(newUnitId)) {
-            return res.status(400).json({ error: 'Unit IDs must follow format: b-yyyy-u-xxx (e.g., b-2024-u-001)' });
         }
 
         const gateway = await getGateway();
@@ -351,10 +375,6 @@ app.post('/api/flag', apiKeyMiddleware, async (req, res) => {
 
         if (reason !== 'LOST' && reason !== 'DAMAGED') {
             return res.status(400).json({ error: 'Reason must be either LOST or DAMAGED' });
-        }
-
-        if (!validateUnitId(unitId)) {
-            return res.status(400).json({ error: 'Unit ID must follow format: b-yyyy-u-xxx (e.g., b-2024-u-001)' });
         }
 
         const gateway = await getGateway();

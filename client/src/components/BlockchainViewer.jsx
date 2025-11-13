@@ -3,7 +3,8 @@ import { ExternalLink, Database, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+// Use relative path to go through Vite proxy when accessed via ngrok
+const API_BASE = import.meta.env.VITE_API_BASE || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : '');
 
 export default function BlockchainViewer({ isFullPage = false, hideFloatingButton = false }) {
     const navigate = useNavigate();

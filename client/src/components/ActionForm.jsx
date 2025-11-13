@@ -3,7 +3,8 @@ import axios from 'axios';
 import ScanButton from './ScanButton';
 import { checkScanAvailability } from '../utils/scanUtils';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+// Use relative path to go through Vite proxy when accessed via ngrok
+const API_BASE = import.meta.env.VITE_API_BASE || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : '');
 const API_KEY = import.meta.env.VITE_API_KEY || 'dev-api-key-change-in-production';
 
 export default function ActionForm({ 
@@ -32,9 +33,9 @@ export default function ActionForm({
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    // Helper: Check if field is a Unit ID field that should have scan button
+    // Helper: Check if field is a Unit ID or Batch ID field that should have scan button
     const isUnitIdField = (fieldName) => {
-        return ['unitId', 'unitIds', 'oldUnitId', 'newUnitId'].includes(fieldName);
+        return ['unitId', 'unitIds', 'oldUnitId', 'newUnitId', 'batchId'].includes(fieldName);
     };
 
     const handleSubmit = async (e) => {
@@ -57,6 +58,15 @@ export default function ActionForm({
                 
                 if (submitData.unitIds.length === 0) {
                     setError('At least one unit ID is required');
+                    setLoading(false);
+                    return;
+                }
+            }
+
+            // Validate receive action - need either batchId or unitId
+            if (action === 'receive') {
+                if (!submitData.batchId && !submitData.unitId) {
+                    setError('Either Batch ID or Unit ID is required');
                     setLoading(false);
                     return;
                 }
@@ -121,17 +131,19 @@ export default function ActionForm({
                     <form onSubmit={handleSubmit} className="space-y-4">
                         {fields.map((field) => (
                             <div key={field.name} className="mb-5">
-                                <div className="flex items-center justify-between mb-2.5">
-                                    <label className="block text-sm font-semibold text-lifestraw-dark">
+                                <div className="flex items-start justify-between mb-2.5 gap-2">
+                                    <label className="block text-sm font-semibold text-lifestraw-dark flex-1">
                                         {field.label}
                                         {field.required && <span className="text-red-500 ml-1">*</span>}
                                     </label>
-                                    {/* Scan Button for Unit ID fields */}
+                                    {/* Scan Button for Unit ID/Batch ID fields */}
                                     {isUnitIdField(field.name) && (
-                                        <ScanButton
-                                            onScan={handleScan}
-                                            fieldName={field.name}
-                                        />
+                                        <div className="flex-shrink-0">
+                                            <ScanButton
+                                                onScan={handleScan}
+                                                fieldName={field.name}
+                                            />
+                                        </div>
                                     )}
                                 </div>
 

@@ -15,7 +15,8 @@ export default function FieldAgent() {
             action: 'receive',
             icon: PackageCheck,
             fields: [
-                { name: 'unitId', label: 'Unit ID', placeholder: 'e.g., b-2024-u-001', required: true },
+                { name: 'batchId', label: 'Batch ID (optional)', placeholder: 'e.g., batch-2024-001', required: false },
+                { name: 'unitId', label: 'Unit ID (optional if batch ID provided)', placeholder: 'e.g., b-2024-u-001', required: false },
                 { name: 'warehouseId', label: 'Warehouse ID', placeholder: 'e.g., WH-001', required: true }
             ]
         },

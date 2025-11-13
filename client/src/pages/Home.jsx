@@ -5,7 +5,8 @@ import Logo from '../components/Logo';
 import BlockchainViewer from '../components/BlockchainViewer';
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+// Use relative path to go through Vite proxy when accessed via ngrok
+const API_BASE = import.meta.env.VITE_API_BASE || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : '');
 
 export default function Home() {
     const [livesSaved, setLivesSaved] = useState(0);

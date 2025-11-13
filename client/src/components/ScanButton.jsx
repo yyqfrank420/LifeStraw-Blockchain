@@ -42,12 +42,12 @@ export default function ScanButton({
     };
 
     return (
-        <div className="relative">
+        <div className="relative inline-block">
             <button
                 type="button"
                 onClick={handleScan}
                 disabled={disabled || scanStatus === 'checking'}
-                className={`flex items-center gap-1.5 px-3 py-1.5 bg-lifestraw-blue text-white rounded-lg text-xs font-semibold active:bg-[#0066A3] disabled:opacity-50 transition-colors ${className}`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 bg-lifestraw-blue text-white rounded-lg text-xs font-semibold active:bg-[#0066A3] disabled:opacity-50 transition-colors whitespace-nowrap ${className}`}
             >
                 {scanStatus === 'checking' ? (
                     <>
@@ -65,14 +65,14 @@ export default function ScanButton({
                 )}
             </button>
             
-            {/* Show scan unavailable message - positioned absolutely or inline based on context */}
+            {/* Show scan unavailable message - positioned absolutely */}
             {scanStatus === 'unavailable' && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-yellow-50 border border-yellow-200 rounded-lg p-3 z-10 shadow-md">
+                <div className="absolute top-full right-0 mt-2 w-64 bg-yellow-50 border border-yellow-200 rounded-lg p-3 z-50 shadow-lg">
                     <div className="flex items-start gap-2">
                         <svg className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                         </svg>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                             <p className="text-xs font-semibold text-yellow-800 mb-1">
                                 No camera or NFC detected
                             </p>
